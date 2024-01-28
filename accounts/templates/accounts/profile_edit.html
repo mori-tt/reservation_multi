@@ -1,0 +1,36 @@
+{% extends "app/base.html" %} {% load widget_tweaks %} {% block content %}
+
+<div class="card card-profile my-5 mx-auto">
+  <div class="card-body">
+    <h5 class="card-title text-center">プロフィール</h5>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <table class="profile_table mb-4">
+        <tbody>
+          <tr>
+            <th class="header">画像</th>
+            <td class="data">{{ form.image }}</td>
+          </tr>
+          <tr>
+            <th class="header">名前</th>
+            <td class="data form_wrap form_wrap-2">
+              {% render_field form.first_name class="form-control" placeholder="姓" %}
+              {% render_field form.last_name class="form-control" placeholder="名" %}
+            </td>
+          </tr>
+          <tr>
+            <th class="header">備考</th>
+            <td class="data">
+              {% render_field form.description class="form-control" placeholder="備考" %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="button mx-auto">
+        <button class="btn btn-lg btn-warning btn-block" type="submit">登録</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
