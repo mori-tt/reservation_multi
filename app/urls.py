@@ -1,10 +1,10 @@
 from django.urls import path
 from app import views
-# from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required
 
 urlpatterns = [
-    path('', views.StoreView.as_view(), name="store"),
-    # path('', login_required(views.cusStoreView.as_view()), name="store"),
+    # path('', views.StoreView.as_view(), name="store"),
+    path('', login_required(views.StoreView.as_view()), name="store"),
     # path('', views.cusStoreView.as_view(), name="cus_store"),
     # path('staff', views.StoreView.as_view(), name="store"),
     path('store/<int:pk>/', views.StaffView.as_view(), name='staff'), 
@@ -15,4 +15,7 @@ urlpatterns = [
     path('mypage/<int:year>/<int:month>/<int:day>/', views.MyPageView.as_view(), name='mypage'), 
     path('mypage/holiday/<int:year>/<int:month>/<int:day>/<int:hour>/', views.Holiday, name='holiday'), 
     path('mypage/delete/<int:year>/<int:month>/<int:day>/<int:hour>/', views.Delete, name='delete'), 
+
+    path('cus_login/', views.CusLoginView.as_view(), name='cus_login'),
+    path('cus_signup/', views.CusSignupView.as_view(), name='cus_signup'),
 ]

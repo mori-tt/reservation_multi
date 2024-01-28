@@ -2,7 +2,7 @@ from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from accounts.models import CustomUser
 from accounts.forms import ProfileForm, SignupUserForm
-# from accounts.forms import CusSignupUserForm
+from accounts.forms import CusSignupUserForm
 from django.shortcuts import render, redirect
 from allauth.account import views
 from app.models import Staff, Booking
@@ -16,9 +16,9 @@ class SignupView(views.SignupView):
 
 
 # カスタマーサインアップビュー
-# class CusSignupView(views.SignupView):
-#         template_name = 'accounts/cus_signup.html'
-#         form_class = CusSignupUserForm
+class CusSignupView(views.SignupView):
+        template_name = 'accounts/cus_signup.html'
+        form_class = CusSignupUserForm
 
 
 
@@ -27,15 +27,15 @@ class LoginView(views.LoginView):
     template_name = 'accounts/login.html'
 
 # カスタマーログインビュー
-# class CusLoginView(views.LoginView):
-#     template_name = 'accounts/cus_login.html'
+class CusLoginView(views.LoginView):
+    template_name = 'accounts/cus_login.html'
 
-#     def form_valid(self, form):
-#         super().form_valid(form)
-#         if self.request.user.user_type == '0':  # カスタマー
-#             return redirect('store')
-#         else:
-#             return redirect('cus_login')
+    def form_valid(self, form):
+        super().form_valid(form)
+        if self.request.user.user_type == '0':  # カスタマー
+            return redirect('store')
+        else:
+            return redirect('cus_login')
 
 # ログアウトビュー
 class LogoutView(views.LogoutView):
