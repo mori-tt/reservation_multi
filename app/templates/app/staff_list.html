@@ -1,0 +1,12 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+<h1>Staffs</h1>
+<ul>
+    {% for staff in staff_data %}
+    <li>
+        <a href="{% url 'mypage' staff.id %}">{{ staff.name }}</a>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}

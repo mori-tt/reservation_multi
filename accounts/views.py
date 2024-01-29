@@ -7,6 +7,8 @@ from django.shortcuts import render, redirect
 from allauth.account import views
 from app.models import Staff, Booking
 from django.utils import timezone
+from django.urls import reverse
+from django.contrib.auth import authenticate, login
 
 
 # スタッフサインアップビュー
@@ -26,16 +28,35 @@ class CusSignupView(views.SignupView):
 class LoginView(views.LoginView):
     template_name = 'accounts/login.html'
 
+    def form_valid(self, form):
+        # ユーザー認証
+        user = authenticate(self.request, email=form.cleaned_data.get('email'), password=form.cleaned_data.get('password'))
+        if user is not None and user.user_type == "1":  # スタッフ
+            login(self.request, user)
+            return redirect('staff_top')  # スタッフ専用トップページへのリダイレクト
+        else:
+            form.add_error(None, 'スタッフのアカウントでログインしてください。')
+            return super().form_invalid(form)
+    def get_success_url(self):
+        # ログイン成功後はスタッフのマイページにリダイレクト
+        return reverse('mypage')
+
 # カスタマーログインビュー
 class CusLoginView(views.LoginView):
     template_name = 'accounts/cus_login.html'
 
     def form_valid(self, form):
-        super().form_valid(form)
-        if self.request.user.user_type == '0':  # カスタマー
-            return redirect('store')
+        # ユーザー認証
+        user = authenticate(self.request, email=form.cleaned_data.get('email'), password=form.cleaned_data.get('password'))
+        if user is not None and user.user_type == "0":  # カスタマー
+            login(self.request, user)
+            return redirect('store')  # カスタマーページへのリダイレクト
         else:
-            return redirect('cus_login')
+            form.add_error(None, 'カスタマーのアカウントでログインしてください。')
+            return super().form_invalid(form)
+    def get_success_url(self):
+        # ログイン成功後はカスタマーのマイページにリダイレクト
+        return reverse('cus_mypage')  # 'cus_mypage'はカスタマーマイページのURL名
 
 # ログアウトビュー
 class LogoutView(views.LogoutView):

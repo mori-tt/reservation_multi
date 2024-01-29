@@ -1,0 +1,12 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+<h1>Stores</h1>
+<ul>
+    {% for store in store_data %}
+    <li>
+        <a href="{% url 'staff_list' store.id %}">{{ store.name }}</a>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}

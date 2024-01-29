@@ -7,16 +7,25 @@ from app.models import Store, Staff, Booking
 from django.views.decorators.http import require_POST
 from app.forms import BookingForm
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import Http404
+from django.contrib.auth import authenticate, login
+from django.views import View
+from allauth.account import views
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
     
-class StoreView(View):
+class StoreView(LoginRequiredMixin, View):
+    login_url = 'accounts/cus_login/'
+
     def get(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            start_date = date.today()
-            weekday = start_date.weekday()
-            # カレンダー日曜日開始
-            if weekday != 6:
-                start_date = start_date - timedelta(days=weekday + 1)
-            return redirect('mypage', start_date.year, start_date.month, start_date.day)
+            if request.user.user_type == '1':  # スタッフ
+                start_date = date.today()
+                weekday = start_date.weekday()
+                if weekday != 6:
+                    start_date = start_date - timedelta(days=weekday + 1)
+                return redirect('mypage', start_date.year, start_date.month, start_date.day)
+            else:  # カスタマー
+                return redirect('store')  
 
         store_data = Store.objects.all()
 
@@ -134,46 +143,121 @@ class BookingView(View):
 class ThanksView(TemplateView):
     template_name = 'app/thanks.html'
 
-class MyPageView(LoginRequiredMixin, View):
+# class MyPageView(LoginRequiredMixin, View):
+#     def get(self, request, *args, **kwargs):
+#         staff_data = Staff.objects.filter(id=request.user.id).select_related('user').select_related('store')[0]
+#         year = self.kwargs.get('year')
+#         month = self.kwargs.get('month')
+#         day = self.kwargs.get('day')
+#         start_date = date(year=year, month=month, day=day)
+#         days = [start_date + timedelta(days=day) for day in range(7)]
+#         start_day = days[0]
+#         end_day = days[-1]
+
+#         calendar = {}
+#         # 12時～20時
+#         for hour in range(12, 21):
+#             row = {}
+#             for day_ in days:
+#                 row[day_] = ""
+#             calendar[hour] = row
+#         start_time = make_aware(datetime.combine(start_day, time(hour=10, minute=0, second=0)))
+#         end_time = make_aware(datetime.combine(end_day, time(hour=20, minute=0, second=0)))
+#         booking_data = Booking.objects.filter(staff=staff_data).exclude(Q(start__gt=end_time) | Q(end__lt=start_time))
+#         for booking in booking_data:
+#             local_time = localtime(booking.start)
+#             booking_date = local_time.date()
+#             booking_hour = local_time.hour
+#             if (booking_hour in calendar) and (booking_date in calendar[booking_hour]):
+#                 calendar[booking_hour][booking_date] = booking.first_name
+
+#         return render(request, 'app/mypage.html', {
+#             'staff_data': staff_data,
+#             'booking_data': booking_data,
+#             'calendar': calendar,
+#             'days': days,
+#             'start_day': start_day,
+#             'end_day': end_day,
+#             'before': days[0] - timedelta(days=7),
+#             'next': days[-1] + timedelta(days=1),
+#             'year': year,
+#             'month': month,
+#             'day': day,
+#         })
+
+class MyPageView(LoginRequiredMixin, UserPassesTestMixin, View):
+    def test_func(self):
+        return self.request.user.user_type == '1'  # '1'はスタッフを表す文字列
+
+    def handle_no_permission(self):
+        # テスト関数がFalseを返した場合（つまり、ユーザーがスタッフでない場合）に実行されるメソッド
+        # ここでは、ユーザーをカスタマーページにリダイレクトします
+        return redirect('store')
+
     def get(self, request, *args, **kwargs):
-        staff_data = Staff.objects.filter(id=request.user.id).select_related('user').select_related('store')[0]
-        year = self.kwargs.get('year')
-        month = self.kwargs.get('month')
-        day = self.kwargs.get('day')
-        start_date = date(year=year, month=month, day=day)
-        days = [start_date + timedelta(days=day) for day in range(7)]
-        start_day = days[0]
-        end_day = days[-1]
+        try:
+            year = int(request.GET.get('year', datetime.now().year))
+            month = int(request.GET.get('month', datetime.now().month))
+            day = int(request.GET.get('day', datetime.now().day))
+            start_date = date(year=year, month=month, day=day)
+            # その他の処理...
+        except ValueError:
+            raise Http404("Invalid date parameters.")
+        
+        if request.user.is_superuser:
+            # スーパーユーザーの場合はすべての店舗データを取得
+            store_data = Store.objects.all()
+            # スーパーユーザー用のテンプレートをレンダリングするか、適切なレスポンスを返す
+            return render(request, 'app/store.html', {
+                'store_data': store_data,
+                # その他のコンテキスト変数
+            })
+        else:
+            # 通常のスタッフの場合は関連する店舗データのみを取得
+            staff_data = Staff.objects.filter(user=request.user).select_related('store').first()
+            if staff_data is None:
+                 # staff_dataがNoneの場合、404エラーを発生させる
+                raise Http404("Staff data not found.")
+            store_data = Store.objects.filter(id=staff_data.store.id)
+            # store_data = Store.objects.filter(id=staff_data.store.id) if staff_data else None
+            year = self.kwargs.get('year')
+            month = self.kwargs.get('month')
+            day = self.kwargs.get('day')
+            start_date = date(year=year, month=month, day=day)
+            days = [start_date + timedelta(days=day) for day in range(7)]
+            start_day = days[0]
+            end_day = days[-1]
 
-        calendar = {}
+            calendar = {}
         # 12時～20時
-        for hour in range(12, 21):
-            row = {}
-            for day_ in days:
-                row[day_] = ""
-            calendar[hour] = row
-        start_time = make_aware(datetime.combine(start_day, time(hour=10, minute=0, second=0)))
-        end_time = make_aware(datetime.combine(end_day, time(hour=20, minute=0, second=0)))
-        booking_data = Booking.objects.filter(staff=staff_data).exclude(Q(start__gt=end_time) | Q(end__lt=start_time))
-        for booking in booking_data:
-            local_time = localtime(booking.start)
-            booking_date = local_time.date()
-            booking_hour = local_time.hour
-            if (booking_hour in calendar) and (booking_date in calendar[booking_hour]):
-                calendar[booking_hour][booking_date] = booking.first_name
+            for hour in range(12, 21):
+                row = {}
+                for day_ in days:
+                    row[day_] = ""
+                calendar[hour] = row
+            start_time = make_aware(datetime.combine(start_day, time(hour=10, minute=0, second=0)))
+            end_time = make_aware(datetime.combine(end_day, time(hour=20, minute=0, second=0)))
+            booking_data = Booking.objects.filter(staff=staff_data).exclude(Q(start__gt=end_time) | Q(end__lt=start_time))
+            for booking in booking_data:
+                local_time = localtime(booking.start)
+                booking_date = local_time.date()
+                booking_hour = local_time.hour
+                if (booking_hour in calendar) and (booking_date in calendar[booking_hour]):
+                    calendar[booking_hour][booking_date] = booking.first_name
 
-        return render(request, 'app/mypage.html', {
-            'staff_data': staff_data,
-            'booking_data': booking_data,
-            'calendar': calendar,
-            'days': days,
-            'start_day': start_day,
-            'end_day': end_day,
-            'before': days[0] - timedelta(days=7),
-            'next': days[-1] + timedelta(days=1),
-            'year': year,
-            'month': month,
-            'day': day,
+            return render(request, 'app/mypage.html', {
+                'staff_data': staff_data,
+                'booking_data': booking_data,
+                'calendar': calendar,
+                'days': days,
+                'start_day': start_day,
+                'end_day': end_day,
+                'before': days[0] - timedelta(days=7),
+                'next': days[-1] + timedelta(days=1),
+                'year': year,
+                'month': month,
+                'day': day,
+                'store_data': store_data,
         })
 
 @require_POST
@@ -211,3 +295,44 @@ def Delete(request, year, month, day, hour):
     if weekday != 6:
         start_date = start_date - timedelta(days=weekday + 1)
     return redirect('mypage', year=start_date.year, month=start_date.month, day=start_date.day)
+
+class StoreListView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            return redirect('mypage')
+        store_data = Store.objects.all()
+        return render(request, 'app/store_list.html', {
+            'store_data': store_data,
+        })
+
+class StaffListView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            return redirect('mypage')
+        store = get_object_or_404(Store, id=kwargs['store_id'])
+        staff_data = Staff.objects.filter(store=store)
+        return render(request, 'app/staff_list.html', {
+            'staff_data': staff_data,
+        })
+    
+# class StaffTopView(views.LoginView):
+#     template_name = 'accounts/login.html'
+#     def form_valid(self, form):
+#         # ユーザー認証
+#         user = authenticate(self.request, email=form.cleaned_data.get('email'), password=form.cleaned_data.get('password'))
+#         if user is not None and user.user_type == "1":  # スタッフ
+#             login(self.request, user)
+#             return redirect('mypage')  # スタッフページへのリダイレクト
+#         else:
+#             form.add_error(None, 'スタッフのアカウントでログインしてください。')
+#             return super().form_invalid(form)
+
+class StaffTopView(View):
+    login_url = 'accounts/login/'
+
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or request.user.user_type != "1":
+            # スタッフでない場合、またはログインしていない場合はログインページにリダイレクト
+            return redirect('account_login')
+        else:  # スタッフ
+            return redirect('mypage')
