@@ -7,8 +7,12 @@ from django.shortcuts import render, redirect
 from allauth.account import views
 from app.models import Staff, Booking
 from django.utils import timezone
+
 from django.urls import reverse
 from django.contrib.auth import authenticate, login
+
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 
 
 # スタッフサインアップビュー
@@ -16,13 +20,10 @@ class SignupView(views.SignupView):
     template_name = 'accounts/signup.html'
     form_class = SignupUserForm
 
-
 # カスタマーサインアップビュー
 class CusSignupView(views.SignupView):
         template_name = 'accounts/cus_signup.html'
         form_class = CusSignupUserForm
-
-
 
 # スタッフログインビュー
 class LoginView(views.LoginView):
@@ -30,16 +31,17 @@ class LoginView(views.LoginView):
 
     def form_valid(self, form):
         # ユーザー認証
-        user = authenticate(self.request, email=form.cleaned_data.get('email'), password=form.cleaned_data.get('password'))
+        # user = authenticate(self.request, email=form.cleaned_data.get('email'), password=form.cleaned_data.get('password'))
+        user = authenticate(self.request, email=form.cleaned_data.get('login'), password=form.cleaned_data.get('password'))
         if user is not None and user.user_type == "1":  # スタッフ
             login(self.request, user)
-            return redirect('staff_top')  # スタッフ専用トップページへのリダイレクト
+            return redirect('store')  # リダイレクト
         else:
             form.add_error(None, 'スタッフのアカウントでログインしてください。')
             return super().form_invalid(form)
-    def get_success_url(self):
-        # ログイン成功後はスタッフのマイページにリダイレクト
-        return reverse('mypage')
+    # def get_success_url(self):
+    #     # ログイン成功後
+    #     return reverse('mypage')
 
 # カスタマーログインビュー
 class CusLoginView(views.LoginView):
@@ -47,24 +49,28 @@ class CusLoginView(views.LoginView):
 
     def form_valid(self, form):
         # ユーザー認証
-        user = authenticate(self.request, email=form.cleaned_data.get('email'), password=form.cleaned_data.get('password'))
+        # user = authenticate(self.request, email=form.cleaned_data.get('email'), password=form.cleaned_data.get('password'))
+        user = authenticate(self.request, email=form.cleaned_data.get('login'), password=form.cleaned_data.get('password'))
         if user is not None and user.user_type == "0":  # カスタマー
             login(self.request, user)
-            return redirect('store')  # カスタマーページへのリダイレクト
+            return redirect('store')  # リダイレクト
         else:
             form.add_error(None, 'カスタマーのアカウントでログインしてください。')
             return super().form_invalid(form)
-    def get_success_url(self):
-        # ログイン成功後はカスタマーのマイページにリダイレクト
-        return reverse('cus_mypage')  # 'cus_mypage'はカスタマーマイページのURL名
+
 
 # ログアウトビュー
 class LogoutView(views.LogoutView):
     template_name = 'accounts/logout.html'
+    @method_decorator(never_cache)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
     def post(self, *args, **kwargs):
         if self.request.user.is_authenticated:
             self.logout()
-        return redirect('/')
+        response = redirect('/')
+        return response
 
 class ProfileView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):

@@ -6,7 +6,7 @@ from django.views.generic import View, TemplateView
 from app.models import Store, Staff, Booking
 from django.views.decorators.http import require_POST
 from app.forms import BookingForm
-from django.contrib.auth.mixins import LoginRequiredMixin
+
 from django.http import Http404
 from django.contrib.auth import authenticate, login
 from django.views import View
@@ -23,9 +23,7 @@ class StoreView(LoginRequiredMixin, View):
                 weekday = start_date.weekday()
                 if weekday != 6:
                     start_date = start_date - timedelta(days=weekday + 1)
-                return redirect('mypage', start_date.year, start_date.month, start_date.day)
-            else:  # カスタマー
-                return redirect('store')  
+                return redirect('mypage', start_date.year, start_date.month, start_date.day) 
 
         store_data = Store.objects.all()
 
